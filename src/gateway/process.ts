@@ -73,6 +73,7 @@ export async function findExistingGatewayProcess(sandbox: Sandbox): Promise<Proc
       // Don't match CLI commands like "openclaw devices list"
       const isGatewayProcess =
         proc.command.includes('start-openclaw.sh') ||
+        proc.command.includes('/usr/local/bin/start-openclaw.sh') ||
         proc.command.includes('openclaw gateway') ||
         // Legacy: match old startup script during transition
         proc.command.includes('start-moltbot.sh') ||
