@@ -62,7 +62,6 @@ export async function findExistingGatewayProcess(sandbox: Sandbox): Promise<Proc
  * @returns The running gateway process, or null if the gateway is up but we
  *          don't have a process handle (detected via port probe only)
  */
-export async function ensureGateway(sandbox: Sandbox, env: OpenClawEnv): Promise<Process> {
 export async function ensureGateway(sandbox: Sandbox, env: OpenClawEnv): Promise<Process | null> {
   // Check if gateway is already running or starting
   const existingProcess = await findExistingGatewayProcess(sandbox);
@@ -99,7 +98,9 @@ export async function ensureGateway(sandbox: Sandbox, env: OpenClawEnv): Promise
   // Probe the port directly — if it's open, the gateway is up and we're done.
   try {
     if (await isGatewayPortOpen(sandbox)) {
-      console.log(`Port ${GATEWAY_PORT} already open — gateway running but undetected by listProcesses(), skipping spawn`);
+      console.log(
+        `Port ${GATEWAY_PORT} already open — gateway running but undetected by listProcesses(), skipping spawn`,
+      );
       return null;
     }
   } catch (e) {

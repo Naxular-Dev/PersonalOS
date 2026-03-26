@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from 'vitest';
-import { findExistingGatewayProcess } from './process';
 import { findExistingGatewayProcess, isGatewayPortOpen } from './process';
 import type { Sandbox, Process } from '@cloudflare/sandbox';
 import { createMockSandbox, createMockExecResult } from '../test-utils';
