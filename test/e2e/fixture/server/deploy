@@ -69,6 +69,7 @@ echo "$R2_ACCESS_KEY_ID" | npx wrangler secret put R2_ACCESS_KEY_ID --name "$WOR
 echo "$R2_SECRET_ACCESS_KEY" | npx wrangler secret put R2_SECRET_ACCESS_KEY --name "$WORKER_NAME" >&2
 echo "$R2_BUCKET" | npx wrangler secret put R2_BUCKET_NAME --name "$WORKER_NAME" >&2
 echo "$CLOUDFLARE_ACCOUNT_ID" | npx wrangler secret put CF_ACCOUNT_ID --name "$WORKER_NAME" >&2
+echo "$CLOUDFLARE_ACCOUNT_ID" | npx wrangler secret put CLOUDFLARE_ACCOUNT_ID --name "$WORKER_NAME" >&2
 
 # Set AI provider keys if available
 # Cloudflare AI Gateway (preferred)
