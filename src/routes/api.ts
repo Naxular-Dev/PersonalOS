@@ -248,28 +248,38 @@ adminApi.post('/gateway/restart', async (c) => {
     // Find and kill the existing gateway process
     const existingProcess = await findExistingGatewayProcess(sandbox);
 
-    // Force kill the gateway via exec — more reliable than Process.kill()
-    // because start-openclaw.sh execs into "openclaw" which forks
-    // "openclaw-gateway". Process.kill() only kills the tracked shell PID,
-    // but the forked child keeps port 18789. (Credit: dalexeenko #261)
-    //
-    // The actual process names are "openclaw" and "openclaw-gateway" (hyphenated).
-    try {
-      await sandbox.exec(
-        'kill -9 $(pgrep -x "openclaw-gateway" 2>/dev/null) $(pgrep -x "openclaw" 2>/dev/null) 2>/dev/null; true',
-      );
-    } catch {
-      // Process may not exist or pgrep not available
-    }
-
-    // Also kill via the Process API for completeness
+    // Kill via the Process API first
     if (existingProcess) {
-      console.log('Also killing via Process API:', existingProcess.id);
+      console.log('[Restart] Killing via Process API:', existingProcess.id);
       try {
         await existingProcess.kill();
       } catch {
         // Ignore
       }
+    }
+
+    // Force kill the gateway via exec — more reliable than Process.kill()
+    // because start-openclaw.sh execs into "openclaw" which forks
+    // "openclaw-gateway". Process.kill() only kills the tracked shell PID,
+    // but the forked child keeps port 18789. (Credit: dalexeenko #261)
+    //
+    // Use multiple strategies since we don't know what tools are available.
+    try {
+      const killResult = await sandbox.exec(
+        [
+          // Strategy 1: pgrep by exact name (most precise)
+          'kill -9 $(pgrep -x "openclaw-gateway" 2>/dev/null) $(pgrep -x "openclaw" 2>/dev/null) 2>/dev/null',
+          // Strategy 2: pkill by pattern (broader match)
+          'pkill -9 -f "openclaw" 2>/dev/null',
+          // Strategy 3: find by port (most reliable but needs ss/fuser)
+          'kill -9 $(ss -tlnp sport = :18789 2>/dev/null | grep -oP "pid=\\K[0-9]+") 2>/dev/null',
+          // Always succeed
+          'true',
+        ].join('; '),
+      );
+      console.log('[Restart] Kill result:', killResult.stdout?.trim(), killResult.stderr?.trim());
+    } catch (e) {
+      console.error('[Restart] Kill exec failed:', e);
     }
 
     // Clean up lock files that prevent restart
@@ -281,13 +291,11 @@ adminApi.post('/gateway/restart', async (c) => {
       // Ignore
     }
 
-    // Wait for process to fully die and verify port is free
-    await new Promise((r) => setTimeout(r, 2000));
+    // Wait for process to fully die and verify
+    await new Promise((r) => setTimeout(r, 3000));
     try {
-      const check = await sandbox.exec(
-        'pgrep -x "openclaw-gateway" && echo "STILL ALIVE" || echo "dead"',
-      );
-      console.log('[Restart] Process check after kill:', check.stdout?.trim());
+      const check = await sandbox.exec('ps aux | grep -v grep | grep openclaw || echo "ALL DEAD"');
+      console.log('[Restart] Surviving processes:', check.stdout?.trim());
     } catch {
       // Ignore
     }
