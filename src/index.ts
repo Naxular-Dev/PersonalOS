@@ -268,9 +268,13 @@ app.all('*', async (c) => {
   // The loading page polls /api/status which handles restore + gateway start.
 
   // For non-WebSocket, non-HTML requests (API calls, static assets), we need
-  // the gateway to be running. Try with a timeout — if it's not ready, return
-  // an error that the client can retry.
+  // the gateway to be running. Restore first, then start.
   if (!isWebSocketRequest && !acceptsHtml) {
+    try {
+      await restoreIfNeeded(sandbox, c.env.BACKUP_BUCKET);
+    } catch {
+      // non-fatal
+    }
     try {
       await ensureGateway(sandbox, c.env);
     } catch (error) {
@@ -310,8 +314,13 @@ app.all('*', async (c) => {
       containerResponse = await sandbox.wsConnect(wsRequest, GATEWAY_PORT);
     } catch (err) {
       if (isGatewayCrashedError(err)) {
-        console.log('[WS] Gateway crashed, attempting restart and retry...');
+        console.log('[WS] Gateway crashed, attempting restore + restart and retry...');
         await killGateway(sandbox);
+        try {
+          await restoreIfNeeded(sandbox, c.env.BACKUP_BUCKET);
+        } catch {
+          // non-fatal
+        }
         await ensureGateway(sandbox, c.env);
         try {
           containerResponse = await sandbox.wsConnect(wsRequest, GATEWAY_PORT);
@@ -458,8 +467,13 @@ app.all('*', async (c) => {
     httpResponse = await sandbox.containerFetch(request, GATEWAY_PORT);
   } catch (err) {
     if (isGatewayCrashedError(err)) {
-      console.log('[HTTP] Gateway crashed, attempting restart and retry...');
+      console.log('[HTTP] Gateway crashed, attempting restore + restart and retry...');
       await killGateway(sandbox);
+      try {
+        await restoreIfNeeded(sandbox, c.env.BACKUP_BUCKET);
+      } catch {
+        // non-fatal
+      }
       await ensureGateway(sandbox, c.env);
       try {
         httpResponse = await sandbox.containerFetch(request, GATEWAY_PORT);
