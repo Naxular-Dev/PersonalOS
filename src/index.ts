@@ -275,19 +275,9 @@ app.all('*', async (c) => {
   // Restoring on every request (including WebSocket reconnects) would mount a
   // FUSE overlay that interferes with createBackup — the SDK resets the overlay
   // on backup, wiping upper-layer writes.
-  let restoreTimedOut = false;
-  if (!isGatewayReady) {
-    try {
-      await Promise.race([
-        restoreIfNeeded(sandbox, c.env.BACKUP_BUCKET),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Restore timeout')), 15_000)),
-      ]);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[PROXY] Backup restore failed/timeout:', msg);
-      if (msg.includes('timeout')) restoreTimedOut = true;
-    }
-  }
+  // NOTE: We do NOT call restoreIfNeeded here. Restore + gateway start are
+  // handled exclusively by /api/status (via waitUntil) to avoid races where
+  // the gateway starts before the FUSE overlay is mounted.
 
   // For browser requests (non-WebSocket, non-API), show loading page if gateway isn't ready
   const isWebSocketRequest = request.headers.get('Upgrade')?.toLowerCase() === 'websocket';
@@ -295,19 +285,10 @@ app.all('*', async (c) => {
 
   if (!isGatewayReady && !isWebSocketRequest && acceptsHtml) {
     console.log('[PROXY] Gateway not ready, serving loading page');
-
-    // Only start the gateway if restore didn't time out — starting without
-    // the FUSE overlay would lose restored files. The loading page polls
-    // /api/status which will retry the restore.
-    if (!restoreTimedOut) {
-      c.executionCtx.waitUntil(
-        ensureGateway(sandbox, c.env).catch((err: Error) => {
-          console.error('[PROXY] Background gateway start failed:', err);
-        }),
-      );
-    }
-
-    // Return the loading page immediately
+    // Don't start the gateway here — the loading page polls /api/status
+    // which handles restore + gateway start in the correct order.
+    // Starting from both places creates a race where the gateway may
+    // start before the restore completes.
     return c.html(loadingPageHtml);
   }
 
