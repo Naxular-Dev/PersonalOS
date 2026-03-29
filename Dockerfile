@@ -36,11 +36,17 @@ RUN mkdir -p /home/openclaw/.openclaw \
     && ln -s /home/openclaw/clawd /root/clawd
 
 # Copy startup script
-# Build cache bust: 2026-03-26-v32-home-dir
+# Build cache bust: 2026-03-29-v34-fix-workspace-path
 COPY start-openclaw.sh /usr/local/bin/start-openclaw.sh
 RUN chmod +x /usr/local/bin/start-openclaw.sh
 
-# Copy custom skills
+# Copy PersonalOS workspace files (AGENTS.md, SOUL.md, FAMILY.md)
+COPY workspace/ /home/openclaw/.openclaw/workspace/
+
+# Copy custom skills to both locations:
+# - OpenClaw workspace (for skill loading)
+# - clawd directory (for shell scripts like cloudflare-browser)
+COPY skills/ /home/openclaw/.openclaw/workspace/skills/
 COPY skills/ /home/openclaw/clawd/skills/
 
 # Ensure all files are readable for mksquashfs (Sandbox SDK backup).
