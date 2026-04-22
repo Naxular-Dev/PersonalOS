@@ -1,5 +1,50 @@
 # PersonalOS Build Log
 
+## Session: Tuesday 21st April 2026 (evening) — Factory Reset
+
+### What we did
+
+Returned the container to upstream (`cloudflare/moltworker`) factory state so
+OpenClaw grows organically from real usage rather than starting from a heavily
+seeded template.
+
+**Removed (committed as `b6c5b9a`):**
+- `workspace/` directory (custom `AGENTS.md`, `SOUL.md`, `FAMILY.md`, `data/*` subdirs)
+- `skills/morning-briefing/`, `skills/payment-monitor/`, `skills/purchase-tracker/`, `skills/renewal-monitor/`
+- Dockerfile `COPY workspace/` + `COPY skills/ .../.openclaw/workspace/skills/` lines
+
+**Kept (factory / infra):**
+- `skills/cloudflare-browser/` (upstream, not yours)
+- `wrangler.jsonc` customisations (worker name `moltbot-sandbox`, R2 binding `BACKUP_BUCKET` → `moltbot-data`)
+- `BUILD-LOG.md` (this file, your notes)
+- All worker source code in `src/`
+- All secrets on the Worker (unchanged)
+- Cloudflare Access application
+- Telegram bot registration
+- R2 bucket (just wiped the `restore-needed` marker; no `backup-handle.json` existed)
+
+**Deployment environment gotchas hit tonight:**
+- Docker Desktop blocked by corporate policy → installed **Colima** (`brew install colima docker`) as free open-source alternative.
+- Docker Hub TLS rejected pulling `cloudflare/sandbox:0.7.20` base image → corporate MITM proxy not trusted by Colima VM. Fix: `cat ~/cloudflare-ca.pem | colima ssh sudo tee /usr/local/share/ca-certificates/cloudflare.crt` then `colima ssh sudo update-ca-certificates` then `colima restart`.
+- First deploy failed `containers:write` scope missing on wrangler auth → `wrangler logout && wrangler login` picked up the newer scope.
+- Second deploy: image pushed fine, but "Deploy a container application" step failed `Unauthorized` on wrangler 4.60. Fix: `npm install --save-dev wrangler@latest` (4.84.1). Deploy succeeded first try after that.
+
+### Deploy state
+
+- Worker: `moltbot-sandbox` v`8a8e4ac8-540f-43ae-bfdd-aa6ef8b7e3bf`
+- Container image: `registry.cloudflare.com/2f1e9aae67d15657270dfc3cef9a675a/moltbot-sandbox-sandbox:8a8e4ac8`
+- Smoke test: `HEAD /` returns 302 → Access login as expected.
+- First container boot will run `openclaw onboard --non-interactive` to create a fresh config from env vars alone. No pre-seeded workspace content.
+
+### Next session
+
+The workspace will grow as you use it. To Telegram the bot for the first time on the fresh install:
+1. Message the bot in Telegram
+2. (If `TELEGRAM_DM_POLICY=pairing`) Approve the device in the admin UI at `/_admin/`
+3. Start with anything — the agent creates structure as you go.
+
+---
+
 ## Last Session: Sunday 29th March 2026
 
 ### What We Built
